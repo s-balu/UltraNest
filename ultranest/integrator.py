@@ -393,6 +393,7 @@ class NestedSampler(object):
                  num_live_points=1000,
                  vectorized=False,
                  wrapped_params=[],
+                 comm=None
                  ):
         """Set up nested sampler.
 
@@ -421,8 +422,10 @@ class NestedSampler(object):
         vectorized: bool
             If true, loglike and transform function can receive arrays
             of points.
-
+        comm: mpi4py.MPI.Comm or None (default: None)
+            MPI communicator to use for parallelisation.
         """
+
         self.paramnames = param_names
         x_dim = len(self.paramnames)
         self.num_live_points = num_live_points
@@ -474,7 +477,7 @@ class NestedSampler(object):
         self.use_mpi = False
         try:
             from mpi4py import MPI
-            self.comm = MPI.COMM_WORLD
+            self.comm = MPI.COMM_WORLD if comm is None else comm
             self.mpi_size = self.comm.Get_size()
             self.mpi_rank = self.comm.Get_rank()
             if self.mpi_size > 1:
@@ -924,6 +927,7 @@ class ReactiveNestedSampler(object):
                  ndraw_max=65536,
                  storage_backend='hdf5',
                  warmstart_max_tau=-1,
+                 comm=None
                  ):
         """Initialise nested sampler.
 
@@ -997,6 +1001,9 @@ class ReactiveNestedSampler(object):
             Live points are reused as long as the live point order 
             is below this normalised Kendall tau distance.
             Values from 0 (highly conservative) to 1 (extremely negligent).
+
+        comm: mpi4py.MPI.Comm or None (default: None)
+            MPI communicator to use for parallelisation.
         """
         self.paramnames = param_names
         x_dim = len(self.paramnames)
@@ -1016,7 +1023,7 @@ class ReactiveNestedSampler(object):
         self.use_mpi = False
         try:
             from mpi4py import MPI
-            self.comm = MPI.COMM_WORLD
+            self.comm = MPI.COMM_WORLD if comm is None else comm
             self.mpi_size = self.comm.Get_size()
             self.mpi_rank = self.comm.Get_rank()
             if self.mpi_size > 1:
