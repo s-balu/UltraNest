@@ -57,7 +57,7 @@ def create_logger(module_name, log_dir=None, level=logging.INFO):
 
 
 def _makedirs(name):
-    """python2-compatible makedir """
+    """python2-compatible makedir."""
     # for Python2 compatibility:
     try:
         os.makedirs(name)
@@ -68,7 +68,7 @@ def _makedirs(name):
     # os.makedirs(name, exist_ok=True)
 
 
-def make_run_dir(log_dir, run_num=None, append_run_num=True):
+def make_run_dir(log_dir, run_num=None, append_run_num=True, max_run_num=10000):
     """Generate a new numbered directory for this run to store output.
 
     Parameters
@@ -76,9 +76,11 @@ def make_run_dir(log_dir, run_num=None, append_run_num=True):
     log_dir: str
         base path
     run_num: int
-        folder to add to path, such as prefix/1/
+        folder to add to path, such as prefix/run1/
     append_run_num: bool
         If true, set run_num to next unused number
+    max_run_num: int
+        Maximum number of automatic run subfolders
 
     Returns
     -------
@@ -90,8 +92,15 @@ def make_run_dir(log_dir, run_num=None, append_run_num=True):
     _makedirs(log_dir)
 
     if run_num is None or run_num == '':
-        run_num = (sum(os.path.isdir(os.path.join(log_dir,i))
-                       for i in os.listdir(log_dir)) + 1)
+        # loop over existing folders (or files) of the form log_dir/runX
+        # to find next available run_num (up to the hardcoded maximum of 1000)
+        for run_num in range(1, max_run_num):
+            if os.path.exists(os.path.join(log_dir, 'run%s' % run_num)):
+                continue
+            else:
+                break
+        else:
+            raise ValueError("log directory '%s' already contains maximum number of run subdirectories (%d)" % (log_dir, max_run_num))
     if append_run_num:
         run_dir = os.path.join(log_dir, 'run%s' % run_num)
     else:
@@ -118,7 +127,7 @@ def make_run_dir(log_dir, run_num=None, append_run_num=True):
 def vectorize(function):
     """Vectorize likelihood or prior_transform function."""
     def vectorized(args):
-        """ vectorized version of function"""
+        """Vectorized version of function."""
         return np.asarray([function(arg) for arg in args])
 
     vectorized.__name__ = function.__name__
@@ -126,7 +135,7 @@ def vectorize(function):
 
 
 """Square root of a small number."""
-SQRTEPS = (float(np.finfo(np.float64).eps))**0.5
+SQRTEPS = (float(np.finfo(float).eps))**0.5
 
 
 def resample_equal(samples, weights, rstate=None):
@@ -182,7 +191,7 @@ def resample_equal(samples, weights, rstate=None):
     # make N subdivisions, and choose positions with a consistent random offset
     positions = (rstate.random() + np.arange(N)) / N
 
-    idx = np.zeros(N, dtype=np.int)
+    idx = np.zeros(N, dtype=int)
     cumulative_sum = np.cumsum(weights)
     i, j = 0, 0
     while i < N:
@@ -198,7 +207,7 @@ def resample_equal(samples, weights, rstate=None):
 
 def listify(*args):
     """
-    concatenate args, which are (made to be) lists
+    Concatenate args, which are (made to be) lists.
 
     Parameters
     ----------
@@ -291,8 +300,7 @@ def vol_prefactor(n):
 
 def is_affine_transform(a, b):
     """
-    checks if one group of points *a* is an affine transform
-    of another group of points *b*.
+    Check if one points *a* and *b* are related by an affine transform.
 
     The implementation currently returns False for rotations.
 
@@ -311,11 +319,13 @@ def is_affine_transform(a, b):
     n, da = a.shape
     nb, db = b.shape
     assert n == nb
+    assert db >= da
+
     n = (n // 2) * 2
     a1 = a[0:n:2]
     a2 = a[1:n:2]
-    b1 = b[0:n:2]
-    b2 = b[1:n:2]
+    b1 = b[0:n:2,:da]
+    b2 = b[1:n:2,:da]
     slopes = (b2 - b1) / (a2 - a1)
     if not np.allclose(slopes, slopes[0]):
         return False
@@ -327,9 +337,8 @@ def is_affine_transform(a, b):
 
 def normalised_kendall_tau_distance(values1, values2, i=None, j=None):
     """
-    Normalised Kendall tau distance between two arrays, 
-    *values1* and *values2*, both of length N.
-    
+    Normalised Kendall tau distance between two equally sized arrays.
+
     see https://en.wikipedia.org/wiki/Kendall_tau_distance
 
     You can optionally pass precomputed indices::
@@ -362,10 +371,9 @@ def normalised_kendall_tau_distance(values1, values2, i=None, j=None):
     return ndisordered / (N * (N - 1))
 
 
-
 def _merge_transform_loglike_gradient_function(transform, loglike, gradient):
     def transform_loglike_gradient(u):
-        """combine transform, likelihood and gradient function"""
+        """Combine transform, likelihood and gradient function."""
         p = transform(u.reshape((1, -1)))
         return p[0], loglike(p)[0], gradient(u)
     return transform_loglike_gradient
@@ -373,9 +381,9 @@ def _merge_transform_loglike_gradient_function(transform, loglike, gradient):
 
 def verify_gradient(ndim, transform, loglike, gradient, verbose=False, combination=False):
     """
-    check with numerical differentiation if the gradient function
-    is plausibly correct. Raises AssertError otherwise.
+    Check with numerical differentiation if gradient function is plausibly correct.
 
+    Raises AssertError if not fulfilled.
     All functions are vectorized.
 
     Parameters
