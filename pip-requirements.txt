@@ -16,3 +16,4 @@ fastkde
 getdist
 nbstripout
 mpi4py
+numpyencoder

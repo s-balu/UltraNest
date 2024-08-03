@@ -23,6 +23,7 @@ import warnings
 
 import numpy as np
 from numpy import exp, log, logaddexp
+from numpyencoder import NumpyEncoder
 
 from .hotstart import get_auxiliary_contbox_parameterization
 from .mlfriends import (AffineLayer, LocalAffineLayer, MLFriends,
@@ -429,6 +430,7 @@ class NestedSampler:
                  num_live_points=1000,
                  vectorized=False,
                  wrapped_params=[],
+                 comm=None
                  ):
         """Set up nested sampler.
 
@@ -460,8 +462,11 @@ class NestedSampler:
         run_num: int
             unique run number. If None, will be automatically incremented.
 
+        comm: mpi4py.MPI.Comm or None (default: None)
+            MPI communicator to use for parallelisation.
         """
-        self.paramnames = list(param_names)
+
+        self.paramnames = param_names
         x_dim = len(self.paramnames)
         self.num_live_points = num_live_points
         self.sampler = 'nested'
@@ -512,10 +517,10 @@ class NestedSampler:
         self.use_mpi = False
         try:
             from mpi4py import MPI
-            self.comm = MPI.COMM_WORLD
+            self.comm = MPI.COMM_WORLD if comm is None else comm
             self.mpi_size = self.comm.Get_size()
             self.mpi_rank = self.comm.Get_rank()
-            if self.mpi_size > 1:
+            if self.comm:
                 self.use_mpi = True
         except Exception:
             self.mpi_size = 1
@@ -1044,6 +1049,7 @@ class ReactiveNestedSampler:
                  ndraw_max=65536,
                  storage_backend='hdf5',
                  warmstart_max_tau=-1,
+                 comm=None
                  ):
         """Initialise nested sampler.
 
@@ -1121,6 +1127,9 @@ class ReactiveNestedSampler:
             Live points are reused as long as the live point order
             is below this normalised Kendall tau distance.
             Values from 0 (highly conservative) to 1 (extremely negligent).
+
+        comm: mpi4py.MPI.Comm or None (default: None)
+            MPI communicator to use for parallelisation.
         """
         self.paramnames = param_names
         x_dim = len(self.paramnames)
@@ -1141,7 +1150,7 @@ class ReactiveNestedSampler:
         self.use_mpi = False
         try:
             from mpi4py import MPI
-            self.comm = MPI.COMM_WORLD
+            self.comm = MPI.COMM_WORLD if comm is None else comm
             self.mpi_size = self.comm.Get_size()
             self.mpi_rank = self.comm.Get_rank()
             if self.mpi_size > 1:
@@ -2963,7 +2972,7 @@ class ReactiveNestedSampler:
                        comments='')
 
             with open(os.path.join(self.logs['info'], 'results.json'), 'w') as f:
-                json.dump(results_simple, f, indent=4)
+                json.dump(results_simple, f, indent=4, cls=NumpyEncoder)
 
             np.savetxt(
                 os.path.join(self.logs['info'], 'post_summary.csv'),
